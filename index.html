@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Paleo-Wildfire Database</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 添加火焰图标作为favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1a5f7a 0%, #2c3e50 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .map-section {
+            flex: 3;
+            min-width: 300px;
+        }
+        
+        .controls-section {
+            flex: 1;
+            min-width: 250px;
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            color: #1a5f7a;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        #map {
+            width: 100%;
+            height: 600px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: #e6f2f9;
+            position: relative;
+        }
+        
+        .file-legend {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        .legend-item:hover {
+            background-color: #f0f8ff;
+        }
+        
+        .legend-item.active {
+            background-color: #e6f2ff;
+            border-left: 4px solid #1a5f7a;
+        }
+        
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .point-count {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: #666;
+            background-color: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .info-window {
+            max-width: 250px;
+            padding: 10px;
+        }
+        
+        .info-window h3 {
+            margin-bottom: 5px;
+            color: #1a5f7a;
+        }
+        
+        .note-text {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 8px;
+            padding: 5px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            cursor: text;
+            user-select: text;
+        }
+        
+        .copy-hint {
+            font-size: 0.8rem;
+            color: #888;
+            font-style: italic;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background-color: #1a5f7a;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #144b62;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(26, 95, 122, 0.3);
+        }
+        
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+            transform: translateY(-2px);
+        }
+        
+        .btn-geological {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin: 5px;
+            color: white !important;
+        }
+        
+        .btn-geological:hover {
+            transform: scale(1.05);
+        }
+        
+        /* 古地理复原页面样式 */
+        #reconstruction-page {
+            display: none;
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        .reconstruction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .reconstruction-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .palaeo-section {
+            flex: 2;
+            min-width: 300px;
+        }
+        
+        .recent-section {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .palaeo-image-container {
+            width: 100%;
+            height: 500px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #ddd;
+        }
+        
+        .recent-image-container {
+            width: 100%;
+            height: 300px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+        
+        .palaeo-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+        
+        .palaeo-image.active {
+            display: block;
+        }
+        
+        .recent-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .image-caption {
+            text-align: center;
+            font-style: italic;
+            color: #555;
+            min-height: 24px;
+            margin-bottom: 15px;
+        }
+        
+        .palaeo-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .palaeo-btn {
+            padding: 8px 15px;
+            background-color: #1a5f7a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .palaeo-btn:hover {
+            background-color: #144b62;
+        }
+        
+        .palaeo-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .time-slider-container {
+            flex-grow: 1;
+            max-width: 300px;
+        }
+        
+        .time-slider {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1a5f7a;
+            cursor: pointer;
+        }
+        
+        .time-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1a5f7a;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .time-display {
+            font-weight: bold;
+            color: #1a5f7a;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        .period-info {
+            background-color: #f0f8ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #1a5f7a;
+        }
+        
+        .period-title {
+            color: #1a5f7a;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .period-description {
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        .geological-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 25px 0;
+        }
+        
+        .back-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .back-button:hover {
+            background-color: #5a6268;
+        }
+        
+        .map-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .map-btn {
+            padding: 8px 15px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .map-btn:hover {
+            background-color: #f0f0f0;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            #map {
+                height: 400px;
+            }
+            
+            .btn-geological {
+                width: 50px;
+                height: 50px;
+                font-size: 1rem;
+            }
+            
+            .reconstruction-container {
+                flex-direction: column;
+            }
+            
+            .palaeo-image-container {
+                height: 300px;
+            }
+        }
+        
+        .loading {
+            color: #888;
+            font-style: italic;
+        }
+        
+        .no-image {
+            color: #888;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .no-image i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+            color: #ccc;
+        }
+        
+        .map-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #e6f2f9;
+            border-radius: 10px;
+            color: #1a5f7a;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .map-fallback i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #1a5f7a;
+        }
+        
+        .map-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background-color: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .map-loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a5f7a;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Leaflet 控件样式 */
+        .leaflet-container {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .leaflet-control-layers {
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background: white;
+        }
+        
+        .leaflet-control-layers-toggle {
+            background-image: url('https://unpkg.com/leaflet@1.9.4/dist/images/layers.png');
+            width: 36px;
+            height: 36px;
+        }
+        
+        .leaflet-control-attribution {
+            font-size: 11px;
+            background-color: rgba(255,255,255,0.8);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><i class="fas fa-fire"></i> Global Paleo-Wildfire Database</h1>
+        <p>Interactive map of paleo-wildfire evidence across geological periods</p>
+    </header>
+    
+    <div class="container">
+        <!-- 主页面：地图和数据点 -->
+        <div id="main-page">
+            <div class="main-content">
+                <div class="map-section">
+                    <h2 class="section-title">Global Distribution of Paleo-Wildfire Evidence</h2>
+                    <div id="map">
+                        <div class="map-loading" id="map-loading">
+                            <div class="map-loading-spinner"></div>
+                            <p>正在加载地图...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="map-controls">
+                        <div class="map-btn" id="reset-view">
+                            <i class="fas fa-globe-americas"></i> Reset View
+                        </div>
+                        <div class="map-btn" id="toggle-all">
+                            <i class="fas fa-eye"></i> Show/Hide All
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="reconstruction-btn">
+                            <i class="fas fa-history"></i> Paleogeographic Reconstruction
+                        </button>
+                        <button class="btn btn-secondary" id="export-data-btn">
+                            <i class="fas fa-download"></i> Export Data
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="controls-section">
+                    <h2 class="section-title">Data Files Legend</h2>
+                    <div class="file-legend" id="file-legend">
+                        <!-- 图例将通过JavaScript动态生成 -->
+                    </div>
+                    
+                    <div style="margin-top: 30px;">
+                        <h3 class="section-title">Data Information</h3>
+                        <p>This database contains paleo-wildfire evidence from different geological periods. Click on any marker to view details.</p>
+                        <p>Total data files: <span id="file-count">0</span></p>
+                        <p>Total markers: <span id="marker-count">0</span></p>
+                        <p>Visible markers: <span id="visible-marker-count">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 古地理复原页面 -->
+        <div id="reconstruction-page">
+            <div class="reconstruction-header">
+                <h2 class="section-title">Paleogeographic Reconstruction</h2>
+                <button class="btn btn-secondary back-button" id="back-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Map
+                </button>
+            </div>
+            
+            <p>Select a geological period to view its paleogeographic reconstruction:</p>
+            
+            <div class="geological-buttons" id="geological-buttons">
+                <!-- 地质时期按钮将通过JavaScript动态生成 -->
+            </div>
+            
+            <div id="period-content" style="display: none;">
+                <div class="period-info">
+                    <div class="period-title" id="period-title">Geological Period</div>
+                    <div class="period-description" id="period-description">
+                        Click on a geological period button above to view paleogeographic reconstructions.
+                    </div>
+                </div>
+                
+                <div class="reconstruction-container">
+                    <div class="palaeo-section">
+                        <h3 class="section-title">Paleogeographic Reconstruction</h3>
+                        <div class="palaeo-image-container" id="palaeo-image-container">
+                            <div class="no-image" id="palaeo-no-image">
+                                <i class="fas fa-image"></i>
+                                <p>No paleogeographic reconstruction selected</p>
+                                <p>Click on a geological period button above</p>
+                            </div>
+                            <!-- 古地理图将通过JavaScript动态加载 -->
+                        </div>
+                        <div class="image-caption" id="palaeo-caption">Select a geological period to view reconstructions</div>
+                        
+                        <div class="palaeo-controls">
+                            <button class="palaeo-btn" id="prev-btn" disabled>
+                                <i class="fas fa-backward"></i> Previous
+                            </button>
+                            <button class="palaeo-btn" id="play-pause-btn">
+                                <i class="fas fa-play"></i> Play
+                            </button>
+                            <button class="palaeo-btn" id="next-btn" disabled>
+                                <i class="fas fa-forward"></i> Next
+                            </button>
+                            
+                            <div class="time-slider-container">
+                                <input type="range" min="0" max="100" value="0" class="time-slider" id="time-slider" disabled>
+                            </div>
+                            
+                            <div class="time-display" id="time-display">-- Ma</div>
+                        </div>
+                    </div>
+                    
+                    <div class="recent-section">
+                        <h3 class="section-title">Modern Reference Map</h3>
+                        <div class="recent-image-container" id="recent-image-container">
+                            <div class="no-image" id="recent-no-image">
+                                <i class="fas fa-map"></i>
+                                <p>No modern reference map selected</p>
+                                <p>Click on a geological period button above</p>
+                            </div>
+                            <!-- 现代图将通过JavaScript动态加载 -->
+                        </div>
+                        <div class="image-caption" id="recent-caption">Modern reference map for comparison</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 颜色映射 - 使用大写文件名
+        const colorMap = {
+            "C1.xlsx": "#679B66",
+            "C2.xlsx": "#99C2B5",
+            "D1.xlsx": "#E5AC4D",
+            "D2.xlsx": "#F1C868",
+            "D3.xlsx": "#F1E19D",
+            "E1.xlsx": "#FDA75F",
+            "E2.xlsx": "#FDB46C",
+            "E3.xlsx": "#FDC07A",
+            "J1.xlsx": "#42AED0",
+            "J2.xlsx": "#80CFD8",
+            "J3.xlsx": "#B3E3EE",
+            "K1.xlsx": "#8CCD51",
+            "K2.xlsx": "#A6D84A",
+            "N1.xlsx": "#FFFF00",
+            "N2.xlsx": "#FFFF99",
+            "P1.xlsx": "#EF5845",
+            "P2.xlsx": "#FB745C",
+            "P3.xlsx": "#FBA794",
+            "S1.xlsx": "#99D7B3",
+            "S2.xlsx": "#B3E1C2",
+            "S3.xlsx": "#BFE6CF",
+            "S4.xlsx": "#E6F5E1",
+            "T1.xlsx": "#983999",
+            "T2.xlsx": "#B168B1",
+            "T3.xlsx": "#BD8CC3"
+        };
+        
+        // 地质时期信息 - 按地质年代从老到新排序
+        const geologicalPeriods = {
+            "S": { 
+                name: "Silurian", 
+                fullName: "Silurian Period",
+                color: "#FB745C", 
+                modernImage: "recent/S.png",
+                description: "The Silurian Period (443.8-419.2 million years ago) witnessed the diversification of jawed fish and the first vascular plants on land.",
+                images: [
+                    "palaeo/S_420.00Ma.jpg",
+                    "palaeo/S_425.00Ma.jpg",
+                    "palaeo/S_430.00Ma.jpg",
+                    "palaeo/S_435.00Ma.jpg",
+                    "palaeo/S_440.00Ma.jpg"
+                ]
+            },
+            "D": { 
+                name: "Devonian", 
+                fullName: "Devonian Period",
+                color: "#F1C868", 
+                modernImage: "recent/D.png",
+                description: "The Devonian Period (419.2-358.9 million years ago), known as the 'Age of Fishes', saw the diversification of fish and the first appearance of forests on land.",
+                images: [
+                    "palaeo/D_360.00Ma.jpg",
+                    "palaeo/D_365.00Ma.jpg",
+                    "palaeo/D_370.00Ma.jpg",
+                    "palaeo/D_375.00Ma.jpg",
+                    "palaeo/D_380.00Ma.jpg",
+                    "palaeo/D_385.00Ma.jpg",
+                    "palaeo/D_390.00Ma.jpg",
+                    "palaeo/D_395.00Ma.jpg",
+                    "palaeo/D_400.00Ma.jpg",
+                    "palaeo/D_405.00Ma.jpg",
+                    "palaeo/D_410.00Ma.jpg",
+                    "palaeo/D_415.00Ma.jpg"
+                ]
+            },
+            "C": { 
+                name: "Carboniferous", 
+                fullName: "Carboniferous Period",
+                color: "#99C2B5", 
+                modernImage: "recent/C.png",
+                description: "The Carboniferous Period (358.9-298.9 million years ago) was characterized by vast coal-forming swamps and the diversification of early reptiles and amphibians.",
+                images: [
+                    "palaeo/C_300.00Ma.jpg",
+                    "palaeo/C_305.00Ma.jpg",
+                    "palaeo/C_310.00Ma.jpg",
+                    "palaeo/C_315.00Ma.jpg",
+                    "palaeo/C_320.00Ma.jpg",
+                    "palaeo/C_325.00Ma.jpg",
+                    "palaeo/C_330.00Ma.jpg",
+                    "palaeo/C_335.00Ma.jpg",
+                    "palaeo/C_340.00Ma.jpg",
+                    "palaeo/C_345.00Ma.jpg",
+                    "palaeo/C_350.00Ma.jpg",
+                    "palaeo/C_355.00Ma.jpg"
+                ]
+            },
+            "P": { 
+                name: "Permian", 
+                fullName: "Permian Period",
+                color: "#FDB46C", 
+                modernImage: "recent/P.png",
+                description: "The Permian Period (298.9-252.2 million years ago) ended with the largest mass extinction event in Earth's history, the Permian-Triassic extinction.",
+                images: [
+                    "palaeo/P_255.00Ma.jpg",
+                    "palaeo/P_260.00Ma.jpg",
+                    "palaeo/P_265.00Ma.jpg",
+                    "palaeo/P_270.00Ma.jpg",
+                    "palaeo/P_275.00Ma.jpg",
+                    "palaeo/P_280.00Ma.jpg",
+                    "palaeo/P_285.00Ma.jpg",
+                    "palaeo/P_290.00Ma.jpg",
+                    "palaeo/P_295.00Ma.jpg"
+                ]
+            },
+            "T": { 
+                name: "Triassic", 
+                fullName: "Triassic Period",
+                color: "#B168B1", 
+                modernImage: "recent/T.png",
+                description: "The Triassic Period (252.2-201.3 million years ago) was the first period of the Mesozoic Era, following the Permian extinction and preceding the Jurassic.",
+                images: [
+                    "palaeo/T_205.00Ma.jpg",
+                    "palaeo/T_210.00Ma.jpg",
+                    "palaeo/T_215.00Ma.jpg",
+                    "palaeo/T_220.00Ma.jpg",
+                    "palaeo/T_225.00Ma.jpg",
+                    "palaeo/T_230.00Ma.jpg",
+                    "palaeo/T_235.00Ma.jpg",
+                    "palaeo/T_240.00Ma.jpg",
+                    "palaeo/T_245.00Ma.jpg",
+                    "palaeo/T_250.00Ma.jpg"
+                ]
+            },
+            "J": { 
+                name: "Jurassic", 
+                fullName: "Jurassic Period",
+                color: "#80CFD8", 
+                modernImage: "recent/J.png",
+                description: "The Jurassic Period (201.3-145 million years ago) is known for the dominance of dinosaurs, the appearance of birds, and the breakup of Pangaea.",
+                images: [
+                    "palaeo/J_145.00Ma.jpg",
+                    "palaeo/J_150.00Ma.jpg",
+                    "palaeo/J_155.00Ma.jpg",
+                    "palaeo/J_160.00Ma.jpg",
+                    "palaeo/J_165.00Ma.jpg",
+                    "palaeo/J_170.00Ma.jpg",
+                    "palaeo/J_175.00Ma.jpg",
+                    "palaeo/J_180.00Ma.jpg",
+                    "palaeo/J_185.00Ma.jpg",
+                    "palaeo/J_190.00Ma.jpg",
+                    "palaeo/J_195.00Ma.jpg",
+                    "palaeo/J_200.00Ma.jpg"
+                ]
+            },
+            "K": { 
+                name: "Cretaceous", 
+                fullName: "Cretaceous Period",
+                color: "#A6D84A", 
+                modernImage: "recent/K.png",
+                description: "The Cretaceous Period (145-66 million years ago) was the last period of the Mesozoic Era, ending with the extinction of non-avian dinosaurs.",
+                images: [
+                    "palaeo/K_70.00Ma.jpg",
+                    "palaeo/K_75.00Ma.jpg",
+                    "palaeo/K_80.00Ma.jpg",
+                    "palaeo/K_85.00Ma.jpg",
+                    "palaeo/K_90.00Ma.jpg",
+                    "palaeo/K_95.00Ma.jpg",
+                    "palaeo/K_100.00Ma.jpg",
+                    "palaeo/K_105.00Ma.jpg",
+                    "palaeo/K_110.00Ma.jpg",
+                    "palaeo/K_115.00Ma.jpg",
+                    "palaeo/K_120.00Ma.jpg",
+                    "palaeo/K_125.00Ma.jpg",
+                    "palaeo/K_130.00Ma.jpg",
+                    "palaeo/K_135.00Ma.jpg",
+                    "palaeo/K_140.00Ma.jpg"
+                ]
+            },
+            "E": { 
+                name: "Paleogene", 
+                fullName: "Paleogene Period",
+                color: "#FDA75F", 
+                modernImage: "recent/E.png",
+                description: "The Paleogene Period (66-23 million years ago) followed the Cretaceous-Paleogene extinction event and witnessed the diversification of mammals and birds.",
+                images: [
+                    "palaeo/E_25.00Ma.jpg",
+                    "palaeo/E_30.00Ma.jpg",
+                    "palaeo/E_35.00Ma.jpg",
+                    "palaeo/E_40.00Ma.jpg",
+                    "palaeo/E_45.00Ma.jpg",
+                    "palaeo/E_50.00Ma.jpg",
+                    "palaeo/E_55.00Ma.jpg",
+                    "palaeo/E_60.00Ma.jpg",
+                    "palaeo/E_65.00Ma.jpg"
+                ]
+            },
+            "N": { 
+                name: "Neogene", 
+                fullName: "Neogene Period",
+                color: "#FFFF00", 
+                modernImage: "recent/N.png",
+                description: "The Neogene Period (23-2.6 million years ago) saw the evolution of many modern mammals and the formation of current continents.",
+                images: [
+                    "palaeo/N_5.00Ma.jpg",
+                    "palaeo/N_10.00Ma.jpg",
+                    "palaeo/N_15.00Ma.jpg",
+                    "palaeo/N_20.00Ma.jpg"
+                ]
+            }
+        };
+        
+        // 全局变量
+        let map;
+        let markers = {};
+        let layers = {};
+        let allMarkersVisible = true;
+        
+        // 古地理复原相关变量
+        let currentPeriod = null;
+        let currentImageIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let currentImages = [];
+        
+        // 初始化地图 - 使用多地图源方案
+        function initMap() {
+            // 创建Leaflet地图
+            map = L.map('map').setView([30, 0], 2);
+            
+            // 定义多个地图源
+            const baseMaps = {
+                "CartoDB彩色地图": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                    attribution: '© OpenStreetMap contributors, © CARTO',
+                    maxZoom: 19,
+                    subdomains: 'abcd'
+                }),
+                "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                }),
+                "Esri卫星影像": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: '© Esri',
+                    maxZoom: 19,
+                }),
+                "CartoDB简洁地图": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '© OpenStreetMap contributors, © CARTO',
+                    maxZoom: 19,
+                    subdomains: 'abcd'
+                })
+            };
+            
+            // 默认使用CartoDB彩色地图
+            baseMaps["CartoDB彩色地图"].addTo(map);
+            
+            // 添加地图选择控件（右上角图层选择器）
+            L.control.layers(baseMaps).addTo(map);
+            
+            // 如果默认地图加载失败，自动切换到OpenStreetMap
+            baseMaps["CartoDB彩色地图"].on('tileerror', function(e) {
+                console.log("CartoDB彩色地图加载失败，切换到OpenStreetMap...");
+                map.removeLayer(baseMaps["CartoDB彩色地图"]);
+                baseMaps["OpenStreetMap"].addTo(map);
+            });
+            
+            // 地图加载完成后隐藏加载指示器
+            map.whenReady(function() {
+                setTimeout(function() {
+                    document.getElementById('map-loading').style.display = 'none';
+                }, 500);
+            });
+            
+            // 加载数据
+            loadData();
+            
+            // 创建图例
+            createLegend();
+            
+            // 创建地质时期按钮
+            createGeologicalButtons();
+            
+            // 更新计数
+            updateMarkerCount();
+        }
+        
+        // 加载数据
+        function loadData() {
+            // 从paleo_data.json文件加载数据
+            fetch('paleo_data.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("成功加载数据，文件数量:", Object.keys(data).length);
+                    
+                    // 处理大小写不匹配：如果JSON中的键是小写，但颜色映射是大写，需要转换
+                    const processedData = {};
+                    
+                    Object.keys(data).forEach(fileName => {
+                        let processedFileName = fileName;
+                        
+                        // 尝试将小写文件名转换为大写（如c1.xlsx -> C1.xlsx）
+                        if (fileName.includes('.xlsx')) {
+                            const nameWithoutExt = fileName.replace('.xlsx', '');
+                            const uppercaseName = nameWithoutExt.toUpperCase() + '.xlsx';
+                            
+                            // 如果大写版本在颜色映射中，使用大写版本
+                            if (colorMap[uppercaseName]) {
+                                processedFileName = uppercaseName;
+                            }
+                        }
+                        
+                        processedData[processedFileName] = data[fileName];
+                    });
+                    
+                    // 绘制数据点
+                    plotDataPoints(processedData);
+                })
+                .catch(error => {
+                    console.error('无法加载paleo_data.json文件:', error);
+                    
+                    // 显示错误信息
+                    const mapContainer = document.getElementById('map');
+                    mapContainer.innerHTML = `
+                        <div class="map-fallback">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3>数据加载失败</h3>
+                            <p>无法加载 paleo_data.json 文件</p>
+                            <p>错误信息: ${error.message}</p>
+                            <p>请确保 paleo_data.json 文件与网页在同一目录下</p>
+                        </div>
+                    `;
+                    
+                    // 隐藏加载指示器
+                    document.getElementById('map-loading').style.display = 'none';
+                });
+        }
+        
+        // 在地图上绘制数据点
+        function plotDataPoints(data) {
+            // 清空现有标记
+            clearAllMarkers();
+            
+            let totalPoints = 0;
+            
+            // 为每个文件创建标记
+            Object.keys(data).forEach(fileName => {
+                const fileData = data[fileName];
+                const fileColor = fileData.color || colorMap[fileName] || "#808080";
+                const points = fileData.data || [];
+                
+                console.log(`绘制 ${fileName}: ${points.length} 个点`);
+                
+                // 为这个文件创建图层组
+                const layerGroup = L.layerGroup();
+                
+                // 创建标记
+                points.forEach(point => {
+                    const marker = L.circleMarker([point.lat, point.lng], {
+                        color: '#333',
+                        weight: 1,
+                        fillColor: fileColor,
+                        fillOpacity: 0.8,
+                        radius: 8
+                    });
+                    
+                    // 添加弹窗
+                    const popupContent = `
+                        <div class="info-window">
+                            <h3>Data Point #${point.id}</h3>
+                            <p><strong>File:</strong> ${fileName}</p>
+                            <p><strong>Coordinates:</strong> ${point.lat.toFixed(4)}°, ${point.lng.toFixed(4)}°</p>
+                            <p><strong>Note:</strong></p>
+                            <div class="note-text">${point.note || "No note available"}</div>
+                            <p class="copy-hint">Hover over note text to select and copy</p>
+                        </div>
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                    
+                    // 添加到图层组
+                    marker.addTo(layerGroup);
+                    
+                    // 存储标记
+                    if (!markers[fileName]) {
+                        markers[fileName] = [];
+                    }
+                    markers[fileName].push(marker);
+                    totalPoints++;
+                });
+                
+                // 存储图层
+                layers[fileName] = layerGroup;
+                
+                // 添加到地图
+                if (allMarkersVisible && points.length > 0) {
+                    layerGroup.addTo(map);
+                }
+            });
+            
+            console.log(`总共绘制了 ${totalPoints} 个数据点`);
+            
+            // 更新计数
+            updateMarkerCount();
+            
+            // 更新图例计数
+            updateLegendCounts(data);
+        }
+        
+        // 清空所有标记
+        function clearAllMarkers() {
+            Object.values(layers).forEach(layer => {
+                layer.remove();
+            });
+            
+            markers = {};
+            layers = {};
+        }
+        
+        // 创建图例
+        function createLegend() {
+            const legendContainer = document.getElementById('file-legend');
+            legendContainer.innerHTML = '';
+            
+            // 对文件名进行排序（按字母顺序，大写优先）
+            const sortedFileNames = Object.keys(colorMap).sort((a, b) => {
+                // 先按字母顺序，再按数字顺序
+                const aMatch = a.match(/([A-Z])(\d+)/);
+                const bMatch = b.match(/([A-Z])(\d+)/);
+                
+                if (aMatch && bMatch) {
+                    const aLetter = aMatch[1];
+                    const bLetter = bMatch[1];
+                    const aNum = parseInt(aMatch[2]);
+                    const bNum = parseInt(bMatch[2]);
+                    
+                    if (aLetter === bLetter) {
+                        return aNum - bNum;
+                    }
+                    return aLetter.localeCompare(bLetter);
+                }
+                return a.localeCompare(b);
+            });
+            
+            sortedFileNames.forEach(fileName => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item active';
+                legendItem.dataset.file = fileName;
+                legendItem.innerHTML = `
+                    <div class="color-box" style="background-color: ${colorMap[fileName]};"></div>
+                    <div class="file-name">${fileName}</div>
+                    <div class="point-count" id="count-${fileName}">0</div>
+                `;
+                
+                // 添加点击事件
+                legendItem.addEventListener('click', () => {
+                    toggleFileVisibility(fileName, legendItem);
+                });
+                
+                legendContainer.appendChild(legendItem);
+            });
+            
+            // 更新文件计数
+            document.getElementById('file-count').textContent = sortedFileNames.length;
+        }
+        
+        // 更新图例计数
+        function updateLegendCounts(data) {
+            Object.keys(colorMap).forEach(fileName => {
+                const countElement = document.getElementById(`count-${fileName}`);
+                if (countElement && data[fileName]) {
+                    countElement.textContent = data[fileName].data.length;
+                }
+            });
+        }
+        
+        // 切换文件可见性
+        function toggleFileVisibility(fileName, legendItem) {
+            const layer = layers[fileName];
+            
+            if (layer) {
+                if (map.hasLayer(layer)) {
+                    // 从地图移除
+                    map.removeLayer(layer);
+                    legendItem.classList.remove('active');
+                } else {
+                    // 添加到地图
+                    layer.addTo(map);
+                    legendItem.classList.add('active');
+                }
+                
+                // 更新可见标记计数
+                updateMarkerCount();
+            }
+        }
+        
+        // 更新标记计数
+        function updateMarkerCount() {
+            let totalMarkers = 0;
+            let visibleMarkers = 0;
+            
+            Object.keys(markers).forEach(fileName => {
+                totalMarkers += markers[fileName].length;
+                
+                if (layers[fileName] && map.hasLayer(layers[fileName])) {
+                    visibleMarkers += markers[fileName].length;
+                }
+            });
+            
+            document.getElementById('marker-count').textContent = totalMarkers;
+            document.getElementById('visible-marker-count').textContent = visibleMarkers;
+        }
+        
+        // 创建地质时期按钮 - 按地质年代从老到新排序
+        function createGeologicalButtons() {
+            const buttonsContainer = document.getElementById('geological-buttons');
+            buttonsContainer.innerHTML = '';
+            
+            // 按地质年代排序：S (Silurian) -> D (Devonian) -> C (Carboniferous) -> P (Permian) -> 
+            // T (Triassic) -> J (Jurassic) -> K (Cretaceous) -> E (Paleogene) -> N (Neogene)
+            const periodOrder = ["S", "D", "C", "P", "T", "J", "K", "E", "N"];
+            
+            periodOrder.forEach(periodCode => {
+                const period = geologicalPeriods[periodCode];
+                const button = document.createElement('button');
+                button.className = 'btn btn-geological';
+                button.textContent = periodCode;
+                button.style.backgroundColor = period.color;
+                button.style.color = "white"; // 所有按钮文字都为白色
+                
+                button.addEventListener('click', () => {
+                    // 移除所有按钮的选中状态
+                    document.querySelectorAll('.btn-geological').forEach(btn => {
+                        btn.style.boxShadow = 'none';
+                    });
+                    
+                    // 为当前按钮添加选中状态
+                    button.style.boxShadow = '0 0 0 3px rgba(26, 95, 122, 0.5)';
+                    
+                    // 显示该时期的古地理复原图
+                    showReconstruction(periodCode);
+                });
+                
+                buttonsContainer.appendChild(button);
+            });
+        }
+        
+        // 显示地质时期的重建内容
+        function showReconstruction(periodCode) {
+            const period = geologicalPeriods[periodCode];
+            currentPeriod = periodCode;
+            currentImageIndex = 0;
+            
+            // 停止播放
+            stopPlayback();
+            
+            // 显示内容区域
+            document.getElementById('period-content').style.display = 'block';
+            
+            // 更新标题和描述
+            document.getElementById('period-title').textContent = period.fullName;
+            document.getElementById('period-description').textContent = period.description;
+            
+            // 隐藏"无图像"提示
+            document.getElementById('palaeo-no-image').style.display = 'none';
+            document.getElementById('recent-no-image').style.display = 'none';
+            
+            // 清空现有图片容器
+            const palaeoContainer = document.getElementById('palaeo-image-container');
+            const recentContainer = document.getElementById('recent-image-container');
+            
+            // 清除所有子元素（除了no-image提示）
+            while (palaeoContainer.children.length > 1) {
+                palaeoContainer.removeChild(palaeoContainer.lastChild);
+            }
+            while (recentContainer.children.length > 1) {
+                recentContainer.removeChild(recentContainer.lastChild);
+            }
+            
+            // 加载古地理图 - 按时间从老到新排序（数值大的在前）
+            currentImages = [...period.images];
+            
+            // 按时间从大到小排序（老到新）
+            currentImages.sort((a, b) => {
+                const timeA = extractTimeValueFromFilename(a);
+                const timeB = extractTimeValueFromFilename(b);
+                return timeB - timeA; // 从大到小排序
+            });
+            
+            if (currentImages.length === 0) {
+                document.getElementById('palaeo-no-image').style.display = 'block';
+                document.getElementById('palaeo-caption').textContent = `No paleogeographic reconstructions available for ${period.name} period`;
+                
+                // 禁用控制按钮
+                document.getElementById('prev-btn').disabled = true;
+                document.getElementById('next-btn').disabled = true;
+                document.getElementById('play-pause-btn').disabled = true;
+                document.getElementById('time-slider').disabled = true;
+                document.getElementById('time-display').textContent = '-- Ma';
+            } else {
+                // 创建古地理图元素
+                currentImages.forEach((imageSrc, index) => {
+                    const img = document.createElement('img');
+                    img.src = imageSrc;
+                    img.alt = `Paleogeographic reconstruction for ${period.name} period`;
+                    img.className = 'palaeo-image';
+                    img.dataset.index = index;
+                    img.dataset.time = extractTimeFromFilename(imageSrc);
+                    
+                    // 添加错误处理
+                    img.onerror = function() {
+                        console.error(`Failed to load image: ${imageSrc}`);
+                        this.style.display = 'none';
+                        
+                        // 创建替代内容
+                        const fallbackDiv = document.createElement('div');
+                        fallbackDiv.className = 'no-image';
+                        fallbackDiv.innerHTML = `
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Image not available: ${extractTimeFromFilename(imageSrc)}</p>
+                        `;
+                        
+                        // 替换图片元素
+                        this.parentNode.replaceChild(fallbackDiv, this);
+                    };
+                    
+                    palaeoContainer.appendChild(img);
+                });
+                
+                // 启用控制按钮
+                document.getElementById('prev-btn').disabled = currentImages.length <= 1;
+                document.getElementById('next-btn').disabled = currentImages.length <= 1;
+                document.getElementById('play-pause-btn').disabled = false;
+                
+                // 更新图片显示
+                updateImageDisplay();
+            }
+            
+            // 加载现代图
+            const recentImg = document.createElement('img');
+            recentImg.src = period.modernImage;
+            recentImg.alt = `Modern reference map for ${period.name} period`;
+            recentImg.className = 'recent-image';
+            
+            // 添加错误处理
+            recentImg.onerror = function() {
+                console.error(`Failed to load modern image: ${period.modernImage}`);
+                
+                const fallbackDiv = document.createElement('div');
+                fallbackDiv.className = 'no-image';
+                fallbackDiv.innerHTML = `
+                    <i class="fas fa-map-marked-alt"></i>
+                    <p>Modern reference map not available</p>
+                    <p>Placeholder: ${period.name} period reference</p>
+                `;
+                
+                this.parentNode.replaceChild(fallbackDiv, this);
+            };
+            
+            recentContainer.appendChild(recentImg);
+            
+            // 更新标题
+            document.getElementById('recent-caption').textContent = `Modern reference map for ${period.name} period`;
+            
+            // 更新滑块
+            const slider = document.getElementById('time-slider');
+            slider.max = Math.max(0, currentImages.length - 1);
+            slider.value = currentImageIndex;
+            slider.disabled = currentImages.length <= 1;
+        }
+        
+        // 从文件名中提取时间数值
+        function extractTimeValueFromFilename(filename) {
+            // 匹配类似 "C_300.00Ma.jpg" 中的时间数值部分
+            const match = filename.match(/_(\d+\.?\d*)Ma\./);
+            if (match && match[1]) {
+                return parseFloat(match[1]);
+            }
+            return 0;
+        }
+        
+        // 从文件名中提取时间
+        function extractTimeFromFilename(filename) {
+            // 匹配类似 "C_300.00Ma.jpg" 中的时间部分
+            const match = filename.match(/_(\d+\.?\d*)Ma\./);
+            if (match && match[1]) {
+                return `${match[1]} Ma`;
+            }
+            return "Time unknown";
+        }
+        
+        // 更新图片显示
+        function updateImageDisplay() {
+            // 隐藏所有图片
+            const images = document.querySelectorAll('.palaeo-image');
+            images.forEach(img => {
+                img.classList.remove('active');
+            });
+            
+            // 显示当前图片
+            if (images[currentImageIndex]) {
+                images[currentImageIndex].classList.add('active');
+                
+                // 更新标题
+                const time = images[currentImageIndex].dataset.time;
+                document.getElementById('palaeo-caption').textContent = 
+                    `${geologicalPeriods[currentPeriod].fullName} - ${time}`;
+                
+                // 更新时间显示
+                document.getElementById('time-display').textContent = time;
+                
+                // 更新滑块
+                document.getElementById('time-slider').value = currentImageIndex;
+            }
+        }
+        
+        // 更新按钮状态
+        function updateButtonState() {
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            
+            prevBtn.disabled = currentImages.length <= 1 || currentImageIndex === 0;
+            nextBtn.disabled = currentImages.length <= 1 || currentImageIndex === currentImages.length - 1;
+        }
+        
+        // 播放/暂停功能 - 从老到新播放（索引从小到大，但图片按时间从老到新排序）
+        function togglePlayback() {
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const icon = playPauseBtn.querySelector('i');
+            
+            if (isPlaying) {
+                stopPlayback();
+                icon.className = 'fas fa-play';
+                playPauseBtn.innerHTML = `<i class="fas fa-play"></i> Play`;
+            } else {
+                startPlayback();
+                icon.className = 'fas fa-pause';
+                playPauseBtn.innerHTML = `<i class="fas fa-pause"></i> Pause`;
+            }
+        }
+        
+        // 开始播放 - 从老到新播放
+        function startPlayback() {
+            if (currentImages.length <= 1) return;
+            
+            isPlaying = true;
+            playInterval = setInterval(() => {
+                // 前进到下一张（从老到新）
+                if (currentImageIndex < currentImages.length - 1) {
+                    currentImageIndex++;
+                } else {
+                    // 如果已经是最后一张，回到第一张（最老的）
+                    currentImageIndex = 0;
+                }
+                updateImageDisplay();
+                updateButtonState();
+            }, 2000); // 每2秒切换一张图片
+        }
+        
+        // 停止播放
+        function stopPlayback() {
+            isPlaying = false;
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+        }
+        
+        // 上一张图片 - 向更老的时间
+        function prevImage() {
+            if (currentImageIndex > 0) {
+                currentImageIndex--;
+                updateImageDisplay();
+                updateButtonState();
+            }
+        }
+        
+        // 下一张图片 - 向更新的时间
+        function nextImage() {
+            if (currentImageIndex < currentImages.length - 1) {
+                currentImageIndex++;
+                updateImageDisplay();
+                updateButtonState();
+            }
+        }
+        
+        // 滑块变化
+        function onSliderChange(value) {
+            currentImageIndex = parseInt(value);
+            updateImageDisplay();
+            updateButtonState();
+        }
+        
+        // 页面切换功能
+        document.getElementById('reconstruction-btn').addEventListener('click', () => {
+            document.getElementById('main-page').style.display = 'none';
+            document.getElementById('reconstruction-page').style.display = 'block';
+        });
+        
+        document.getElementById('back-btn').addEventListener('click', () => {
+            document.getElementById('reconstruction-page').style.display = 'none';
+            document.getElementById('main-page').style.display = 'block';
+            stopPlayback();
+        });
+        
+        // 重置地图视图
+        document.getElementById('reset-view').addEventListener('click', () => {
+            map.setView([30, 0], 2);
+        });
+        
+        // 切换所有标记的可见性
+        document.getElementById('toggle-all').addEventListener('click', () => {
+            allMarkersVisible = !allMarkersVisible;
+            
+            Object.keys(layers).forEach(fileName => {
+                const layer = layers[fileName];
+                const legendItem = document.querySelector(`.legend-item[data-file="${fileName}"]`);
+                
+                if (allMarkersVisible) {
+                    layer.addTo(map);
+                    if (legendItem) legendItem.classList.add('active');
+                } else {
+                    map.removeLayer(layer);
+                    if (legendItem) legendItem.classList.remove('active');
+                }
+            });
+            
+            updateMarkerCount();
+            
+            // 更新按钮文本
+            const toggleBtn = document.getElementById('toggle-all');
+            const icon = toggleBtn.querySelector('i');
+            const text = allMarkersVisible ? 'Hide All' : 'Show All';
+            icon.className = allMarkersVisible ? 'fas fa-eye-slash' : 'fas fa-eye';
+            toggleBtn.innerHTML = `${icon.outerHTML} ${text}`;
+        });
+        
+        // 导出数据
+        document.getElementById('export-data-btn').addEventListener('click', () => {
+            // 收集所有数据
+            const exportData = {};
+            
+            Object.keys(markers).forEach(fileName => {
+                const fileMarkers = markers[fileName];
+                const points = [];
+                
+                fileMarkers.forEach(marker => {
+                    const latlng = marker.getLatLng();
+                    points.push({
+                        lat: latlng.lat,
+                        lng: latlng.lng,
+                    });
+                });
+                
+                exportData[fileName] = {
+                    color: colorMap[fileName],
+                    count: points.length
+                };
+            });
+            
+            // 创建下载链接
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'paleo_wildfire_data_export.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            alert('Data exported successfully!');
+        });
+        
+        // 古地理控制事件
+        document.getElementById('play-pause-btn').addEventListener('click', togglePlayback);
+        document.getElementById('prev-btn').addEventListener('click', prevImage);
+        document.getElementById('next-btn').addEventListener('click', nextImage);
+        document.getElementById('time-slider').addEventListener('input', function() {
+            onSliderChange(this.value);
+        });
+        
+        // 初始化地图
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+        });
+    </script>
+</body>
+</html>
