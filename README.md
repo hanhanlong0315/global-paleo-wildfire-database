@@ -1,0 +1,1 @@
+# global-paleo-wildfire-database
